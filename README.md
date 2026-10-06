@@ -41,16 +41,17 @@ Nombre del partido, sigla, eslogan, período y los 4 candidatos (nombre, cargo y
 GET https://eleccionesuagrm.superficct.com/api/buscar.php?registro=<numero>
 ```
 
-## ⚠️ Activar el contador de visitantes únicos (1 vez, desde el dashboard de Vercel)
+## ✅ Contador de visitantes únicos — ya activado
 
-El contador (`api/visit.ts`) necesita una base de datos Redis para recordar qué IPs ya
-visitaron. **No requiere escribir ninguna credencial a mano** — se conecta con un clic:
+`api/visit.ts` usa la base de datos Redis conectada al proyecto (**Upstash for Redis**,
+vía Vercel Storage) para recordar qué IPs ya visitaron. Vercel la conectó con las env
+vars `KV_REST_API_URL` / `KV_REST_API_TOKEN` (el código también acepta
+`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`, por si en el futuro se reconecta
+con otra integración que use esos nombres).
 
-1. Entrá al proyecto en [vercel.com](https://vercel.com) → pestaña **Storage**.
-2. **Create Database** → elegí **Upstash for Redis** (tiene un plan gratuito que alcanza de sobra).
-3. **Connect to Project** → seleccioná este proyecto (`padron-soyfinoricu`).
-4. Vercel agrega automáticamente las env vars `UPSTASH_REDIS_REST_URL` y
-   `UPSTASH_REDIS_REST_TOKEN`. Hacé un redeploy (`vercel --prod` o un nuevo push) y listo.
+Si alguna vez hay que volver a conectarla desde cero: proyecto en
+[vercel.com](https://vercel.com) → **Storage** → **Create Database** → **Upstash for
+Redis** → **Connect to Project** → redeploy.
 
 Hasta que esa base de datos esté conectada, el contador simplemente no se muestra
 (no rompe nada del resto de la página). El endpoint guarda un *hash* de la IP
