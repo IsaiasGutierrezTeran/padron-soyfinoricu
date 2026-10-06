@@ -1,15 +1,12 @@
 import { Eye } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-// Contador de visitas compartido entre dispositivos vía Abacus (gratuito,
-// sin backend propio). Si el servicio no responde, el badge simplemente no
-// se muestra — nunca bloquea ni rompe el resto de la página.
-const NAMESPACE = 'soyfinoricu-padron-icu-2026'
-const KEY = 'visitas'
-const COUNTER_URL = `https://abacus.jasoncameron.dev/hit/${NAMESPACE}/${KEY}`
+// Contador de visitas únicas por IP (ver api/visit.ts). Se cuenta una vez
+// por request a este endpoint, independiente del navegador/dispositivo:
+// el backend es el que decide si la IP ya fue contada o no.
 const STORAGE_KEY = 'sf-visit-count-cache'
 
-let hasHit = false // evita doble conteo por el doble-mount de StrictMode en dev
+let hasHit = false // evita doble llamada por el doble-mount de StrictMode en dev
 
 export function VisitCounter() {
   const [count, setCount] = useState<number | null>(() => {
@@ -25,27 +22,24 @@ export function VisitCounter() {
     if (hasHit) return
     hasHit = true
 
-    // Sin AbortController atado al unmount: en dev, StrictMode monta→limpia→
-    // vuelve a montar el efecto, y abortar en el cleanup mataba el fetch real
-    // antes de que resolviera. El timeout de abajo solo cubre el caso de que
-    // el servicio esté realmente colgado.
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 6000)
 
-    fetch(COUNTER_URL, { signal: controller.signal })
+    fetch('/api/visit', { signal: controller.signal })
       .then((res) => res.json())
-      .then((data: { value?: number }) => {
-        if (typeof data.value === 'number') {
-          setCount(data.value)
+      .then((data: { count?: number | null }) => {
+        if (typeof data.count === 'number') {
+          setCount(data.count)
           try {
-            sessionStorage.setItem(STORAGE_KEY, String(data.value))
+            sessionStorage.setItem(STORAGE_KEY, String(data.count))
           } catch {
             // ignorar si sessionStorage no está disponible
           }
         }
       })
       .catch(() => {
-        // servicio caído o sin conexión: no mostramos nada, no rompemos la UI
+        // endpoint no disponible (ej. en `npm run dev` sin `vercel dev`, o
+        // la base de datos todavía no está conectada): no mostramos nada
       })
       .finally(() => clearTimeout(timeout))
   }, [])
@@ -55,8 +49,8 @@ export function VisitCounter() {
   return (
     <div
       className="no-print fixed bottom-3 right-3 z-40 flex items-center gap-1.5 rounded-full bg-brand-blue-dark/80 px-2.5 py-1.5 text-white shadow-soft backdrop-blur-sm"
-      title="Visitas a esta página"
-      aria-label={`${count} visitas`}
+      title="Visitantes únicos (por IP)"
+      aria-label={`${count} visitantes únicos`}
     >
       <Eye className="size-3.5 opacity-80" strokeWidth={2.2} />
       <span className="text-[11px] font-semibold tabular-nums opacity-90">{count.toLocaleString('es-BO')}</span>
